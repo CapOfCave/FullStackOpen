@@ -1,0 +1,22 @@
+title 0.6: New note (SPA)
+
+note over browser:
+User presses the 'submit' button
+end note
+
+note over browser:
+event handler creates a new note
+and adds it to the notes list
+end note
+
+note over browser:
+browser rerenders note list
+end note
+
+note over browser:
+browser sends the newly created note 
+to the server
+end note
+
+browser->server: HTTP POST https://studies.cs.helsinki.fi/exampleapp/new_note_spa
+server-->browser: 201: created
