@@ -1,51 +1,8 @@
-import axios from "axios";
 import React, { useEffect, useState } from "react";
-
-const Filter = ({ filter, filterChangeHandler }) => {
-  return (
-    <div>
-      filter shown with: <input value={filter} onChange={filterChangeHandler} />
-    </div>
-  );
-};
-
-const PersonForm = (props) => {
-  return (
-    <div>
-      <h2>Add new</h2>
-      <form onSubmit={props.submitHandler}>
-        <div>
-          name:&nbsp;
-          <input value={props.newName} onChange={props.nameChangeHander} />
-        </div>
-        <div>
-          number:&nbsp;
-          <input value={props.newNumber} onChange={props.numberChangeHandler} />
-        </div>
-        <div>
-          <button type="submit">add</button>
-        </div>
-      </form>
-    </div>
-  );
-};
-
-const Persons = ({ persons, filter }) => {
-  return (
-    <div>
-      <h2>Numbers</h2>
-      {persons
-        .filter((person) =>
-          person.name.toLowerCase().includes(filter.toLowerCase())
-        )
-        .map((person) => (
-          <p key={person.name}>
-            {person.name} {person.number}
-          </p>
-        ))}
-    </div>
-  );
-};
+import personService from "./services/persons";
+import Persons from "./components/Persons";
+import PersonForm from "./components/PersonForm";
+import Filter from "./components/Filter";
 
 const App = () => {
   const [persons, setPersons] = useState([]);
@@ -53,28 +10,57 @@ const App = () => {
   const [newNumber, setNewNumber] = useState("");
   const [filter, setFilter] = useState("");
 
+  const showUpdateDialog = (existingUser) => {
+    if (
+      window.confirm(
+        `${newName} is already added to phonebook, do you want to update the phone number?`
+      )
+    ) {
+      const updatedEntry = { ...existingUser, number: newNumber };
+      personService
+        .update(updatedEntry)
+        .then((updatedPerson) =>
+          setPersons(
+            persons.map((person) =>
+              person.id === updatedPerson.id ? updatedPerson : person
+            )
+          )
+        );
+    }
+  };
+
   const submitHandler = (event) => {
     event.preventDefault();
-
-    if (persons.map((person) => person.name).includes(newName)) {
-      alert(`${newName} is already added to phonebook`);
+    const existingUsers = persons.filter((person) => person.name === newName);
+    if (existingUsers.length !== 0) {
+      showUpdateDialog(existingUsers[0]);
       return;
     }
-    setPersons(
-      persons.concat({
-        name: newName,
-        number: newNumber,
-      })
-    );
+    const newEntry = {
+      name: newName,
+      number: newNumber,
+    };
+    personService
+      .create(newEntry)
+      .then((response) => setPersons(persons.concat(response)));
+
     setNewName("");
     setNewNumber("");
   };
 
+  const deleteHandlerCreator = (person) => {
+    return () => {
+      const result = window.confirm(`Delete ${person.name}?`);
+      if (result) {
+        personService
+          .deletePerson(person.id)
+          .then(setPersons(persons.filter((p) => p.id !== person.id)));
+      }
+    };
+  };
+
   useEffect(() => {
-    axios.get("http://localhost:3001/persons").then((response) => {
-      console.log(response.data);
-      setPersons(response.data);
-    });
+    personService.getAll().then((persons) => setPersons(persons));
   }, []);
 
   const nameChangeHander = (event) => setNewName(event.target.value);
@@ -92,7 +78,11 @@ const App = () => {
         newNumber={newNumber}
         numberChangeHandler={numberChangeHandler}
       />
-      <Persons persons={persons} filter={filter} />
+      <Persons
+        persons={persons}
+        filter={filter}
+        deleteHandlerCreator={deleteHandlerCreator}
+      />
     </div>
   );
 };
