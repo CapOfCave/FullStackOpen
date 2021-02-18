@@ -3,12 +3,21 @@ import personService from "./services/persons";
 import Persons from "./components/Persons";
 import PersonForm from "./components/PersonForm";
 import Filter from "./components/Filter";
+import Notification from "./components/Notification";
 
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [filter, setFilter] = useState("");
+  const [notification, innerSetNotification] = useState(null);
+
+  const setNotification = (notif) => {
+    setTimeout(() => {
+      innerSetNotification(null);
+    }, 3000);
+    innerSetNotification(notif);
+  };
 
   const showUpdateDialog = (existingUser) => {
     if (
@@ -19,12 +28,22 @@ const App = () => {
       const updatedEntry = { ...existingUser, number: newNumber };
       personService
         .update(updatedEntry)
-        .then((updatedPerson) =>
+        .then((updatedPerson) => {
           setPersons(
             persons.map((person) =>
               person.id === updatedPerson.id ? updatedPerson : person
             )
-          )
+          );
+          setNotification({
+            message: `Updated phone number of ${updatedPerson.name}.`,
+            type: "success",
+          });
+        })
+        .catch((e) =>
+          setNotification({
+            message: `${updatedEntry.name} was already removed from the server.`,
+            type: "error",
+          })
         );
     }
   };
@@ -40,21 +59,28 @@ const App = () => {
       name: newName,
       number: newNumber,
     };
-    personService
-      .create(newEntry)
-      .then((response) => setPersons(persons.concat(response)));
+    personService.create(newEntry).then((response) => {
+      setPersons(persons.concat(response));
+      setNotification({ message: `Added ${response.name}.`, type: "success" });
+    });
 
     setNewName("");
     setNewNumber("");
   };
 
-  const deleteHandlerCreator = (person) => {
+  const deleteHandlerCreator = (personToDelete) => {
     return () => {
-      const result = window.confirm(`Delete ${person.name}?`);
+      const result = window.confirm(`Delete ${personToDelete.name}?`);
       if (result) {
-        personService
-          .deletePerson(person.id)
-          .then(setPersons(persons.filter((p) => p.id !== person.id)));
+        personService.deletePerson(personToDelete.id).then((deletedPerson) => {
+          setPersons(
+            persons.filter((person) => person.id !== deletedPerson.id)
+          );
+          setNotification({
+            message: `Deleted ${personToDelete.name}.`,
+            type: "success",
+          });
+        });
       }
     };
   };
@@ -70,6 +96,7 @@ const App = () => {
   return (
     <div>
       <h1>Phonebook</h1>
+      <Notification data={notification} />
       <Filter filter={filter} filterChangeHandler={filterChangeHandler} />
       <PersonForm
         submitHandler={submitHandler}
